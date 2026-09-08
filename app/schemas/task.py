@@ -23,13 +23,13 @@ class TaskRead(ReadSchema):
     completed: bool = False
     reward_coins: int
 
-    # test_cases와 correct_option은 채점 전용 정보라 의도적으로 포함하지 않는다.
+    # test_cases and correct_option are grading-only fields, intentionally excluded.
 
 
 class TaskCreate(BaseModel):
     concept_public_id: uuid.UUID
     title: str
-    type: str  # "MULTIPLE_CHOICE" 또는 "CODE"
+    type: str  # "MULTIPLE_CHOICE" or "CODE"
     domain: str
     difficulty: str  # "BRONZE" / "SILVER" / "GOLD"
     description: str
