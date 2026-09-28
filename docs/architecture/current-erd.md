@@ -9,7 +9,7 @@
 - 통합 보유 자산 테이블을 `user_cats`에서 `assets`로 변경했다.
 - Python ORM 모델과 응답 DTO는 `Asset`, `AssetRead`를 사용한다.
 - `CAT_MEMORIES.cat_asset_id`는 `ASSETS.id` 중 고양이 자산 행을 참조한다.
-- `PLACED_OBJECTS.position_data`의 필수 좌표는 `x`, `y`, `z`다. 이전 `rotation` 값은 마이그레이션에서 `z`로 옮긴다.
+- `PLACED_OBJECTS.position_data`의 필수 키는 `x`, `y`, `z`다. 여기서 `z`는 높이나 화면 레이어가 아니라 공개 게임 API의 방향값 `rotation`(0 또는 1)을 저장하는 호환 필드이며, 이전 `rotation` 키는 마이그레이션에서 `z`로 옮겼다.
 - `TASKS`는 하나의 논리 문제에 직접 답안 채점 데이터와 선택적인 객관식 prompt·보기를 함께 저장한다.
 - `TASK_PRESENTATIONS`는 난이도 확률로 고른 표시 방식과 섞은 보기 순서를 사용자 세션별로 고정한다.
 - `USER_LEARNING_TIERS`는 Python과 SQL의 해금 난이도를 독립적으로 저장한다.
@@ -25,8 +25,13 @@
 - 대표 고양이는 `USERS.active_cat_id`로 선택하며, 해당 고양이 자산은 `ASSETS.is_home`으로 홈 배치를 표시한다.
 - 학습 제출은 `TASK_ATTEMPTS.request_id`와 `request_hash`로 멱등성을 보장하고, `TASKS.reward_coins`와 `TASK_ATTEMPTS.coins_awarded`로 보상 기준과 실제 지급액을 기록한다.
 - `GAME_ACTIVITY_EVENTS`는 게임 진입 시각만 최소 수집하고, 문제 통계는 기존 `TASK_ATTEMPTS` 원본과 일별 통계 VIEW에서 계산한다.
+- 배틀 도메인은 현재 ERD와 백엔드 데이터 구조에만 반영되어 있으며, 프론트엔드 화면과 배틀 진행 기능은 아직 구현되지 않았다.
 
 ## Mermaid ERD
+
+> [!NOTE]
+> `ROOMS`, `ROOM_PARTICIPANTS`, `ROOM_TASKS`와 관련 관계는 향후 프론트엔드 구현을 위한 백엔드 데이터 구조다.
+> 현재 프론트엔드에는 배틀 화면과 사용자 진행 흐름이 구현되어 있지 않다.
 
 ```mermaid
 erDiagram
@@ -190,7 +195,7 @@ erDiagram
         uuid public_id UK "UUIDv4"
         int user_id FK
         int item_id FK
-        jsonb position_data "x, y, z"
+        jsonb position_data "x, y, z(rotation 0/1)"
     }
 
     CATS {
@@ -334,7 +339,9 @@ erDiagram
 - `ASSETS`는 `cat_id`와 `item_id` 중 정확히 하나만 가진다.
 - 고양이 자산은 `quantity = 1`이며 중복 획득은 마일리지로 전환한다. `is_home = true`는 고양이 자산에만 허용한다.
 - `CAT_MEMORIES.cat_asset_id`는 `ASSETS` 중 `cat_id`가 있는 행만 참조할 수 있다.
+- `CAT_MEMORIES.context_summary`에는 대화 원문을 저장하지 않는다. 현재 자동 대화 기억은 코딩 학습과 일상·기분에 대한 두 종류의 서버 소유 요약만 저장하고 중복을 제거하므로 고양이별 최대 2개다. 별도 기억 추가 API와 향후 더 구체적인 요약을 지원할 수 있도록 보관 한도는 기본 20개로 두고, 답변 문맥에는 최신 6개까지 사용한다.
 - 가구 배치 수는 사용자가 보유한 해당 아이템의 `ASSETS.quantity`를 초과할 수 없다.
+- `PLACED_OBJECTS.position_data`의 `x`, `y`는 격자 위치이고 `z`는 `rotation`(0 또는 1)이다. 화면 겹침 순서(`zIndex`)는 저장하지 않고 프론트엔드가 `y`와 가구 높이로 계산한다.
 - `GACHA_EXECUTIONS.request_id`는 전역 UNIQUE이고 다른 사용자나 다른 요청 내용의 재사용은 충돌이다.
 - `TASK_ATTEMPTS.request_id`도 전역 UNIQUE이며, 같은 ID의 사용자·과제·컨텍스트·제출 내용이 달라지면 `request_hash` 비교로 충돌 처리한다.
 - `USERS.homepage_user_id`는 nullable UNIQUE이며 동일한 홈페이지 사용자를 둘 이상의 게임 사용자 행에 연결할 수 없다.
